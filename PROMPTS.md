@@ -2,7 +2,7 @@
 
 Grupo G08 · Pokémon (tipo `fire`) · Rama `mejora-ia`
 
-> Cada integrante registra sus propias consultas. Las entradas de Kiara están abajo; Sebastián agrega las suyas al final.
+> Cada integrante registra sus propias consultas.
 
 ---
 
@@ -11,18 +11,18 @@ Grupo G08 · Pokémon (tipo `fire`) · Rama `mejora-ia`
 ### Consulta 1
 - **Fecha:** 2026-11-08
 - **Herramienta:** Claude (claude.ai)
-- **Prompt:** «Ayúdame a hacer este laboratorio. Mi pareja ya avanzó lo suyo; a mí me toca Firebase Authentication y login, roles ADMIN/USUARIO desde Firestore, mantener y cerrar sesión, pantalla de favoritos, panel de administración, notificaciones locales y pruebas. Los commits deben salir con mi cuenta de GitHub.» (Se adjuntó el PDF del laboratorio y el enlace del repositorio).
-- **Qué respondió (resumen):** Revisó el código de mi pareja y armó mi parte respetando los contratos del PDF: `FirebaseAuthRepository` que lee el rol de `usuarios/{uid}`, `LoginViewModel` con validación antes de llamar a Firebase, `SesionViewModel` para mantener y cerrar sesión, `FavoritosViewModel`, `AdminViewModel`, `NotificadorAndroid` detrás de la interface `Notificador` y 18 pruebas unitarias con repositorios falsos. Lo entregó en 9 commits, uno por hito.
-- **Qué usamos / qué cambiamos y por qué:** El docente autorizó usar IA también en la Fase 1 para poder presentar el laboratorio a tiempo. Usamos el código tal cual después de compilarlo (`BUILD SUCCESSFUL`, 62 pruebas sin fallos) y probarlo en el celular. Yo configuré Firebase en la consola (proyecto, usuarios, colección `usuarios` y reglas).
-- **Qué aprendimos:** *(completar con tus palabras; por ejemplo: por qué el rol se guarda en Firestore y no en la app, por qué el ViewModel recibe la interface `Notificador` en vez de un `Context`, y cómo las pruebas usan repositorios falsos).*
+- **Prompt:** Implementar en el proyecto `com.tecsup.pokemon` el módulo de autenticación con Firebase Authentication (login con correo y contraseña y validación de campos), la lectura del rol desde Firestore en `usuarios/{uid}`, la persistencia y el cierre de sesión, la pantalla de favoritos, el panel de administración y las notificaciones locales, respetando los contratos `AuthRepository`, `ItemRepository` y `Notificador` de la sección 5 del laboratorio, con pruebas unitarias de los ViewModel usando repositorios falsos. Uso autorizado por el docente para la Fase 1.
+- **Qué respondió (resumen):** Generó `FirebaseAuthRepository`, `LoginViewModel`, `SesionViewModel`, `FavoritosViewModel`, `AdminViewModel`, `NotificadorAndroid` y sus pantallas en Compose, además de 18 pruebas unitarias, organizados en 9 commits por hito.
+- **Qué usamos / qué cambiamos y por qué:** Usamos el código después de compilarlo (`BUILD SUCCESSFUL`, 62 pruebas sin fallos) y probarlo en el celular con los dos roles. La configuración de Firebase (proyecto, usuarios, colección `usuarios` y reglas de Firestore) se hizo manualmente en la consola.
+- **Qué aprendimos:** Que el rol debe venir de Firestore y no decidirse en la app, que el ViewModel no recibe `Context` sino la interface `Notificador`, y que con repositorios falsos se pueden probar los ViewModel sin Firebase ni Room.
 
 ### Consulta 2
 - **Fecha:** 2026-11-08
 - **Herramienta:** Claude (claude.ai)
-- **Prompt:** «Una mejora es que cuando volteo el celular y quiero ver los Pokémon se ve súper chico, no puedo verlos; ni siquiera puedo ver los datos del Pokémon aunque suba.» (Se adjuntaron capturas del celular en horizontal).
-- **Qué respondió (resumen):** Explicó que en horizontal la barra superior, la barra inferior, el título, el buscador y los filtros ocupaban casi toda la altura. Propuso: (1) mover el menú al costado con `NavigationRail` y reducir la barra superior; (2) que el encabezado de la lista se desplace junto con los Pokémon, usando `LazyVerticalGrid` con columnas adaptables (una en vertical, dos en horizontal); (3) mostrar el detalle en dos columnas (imagen a la izquierda, datos a la derecha) con barras para las estadísticas.
-- **Qué usamos / qué cambiamos y por qué:** Usamos las tres mejoras, una por commit. Detectar `ORIENTATION_LANDSCAPE` con `LocalConfiguration` está en la interfaz (composables), no en el ViewModel, así se respeta MVVM.
-- **Qué aprendimos:** *(completar con tus palabras; por ejemplo: probar en horizontal es parte de probar la app, y el mismo estado del ViewModel puede dibujarse distinto según el tamaño de pantalla sin tocar la lógica).*
+- **Prompt:** Analizar por qué en orientación horizontal la lista de Pokémon queda reducida a una franja mínima y la pantalla de detalle no permite ver los datos, y proponer cambios en la interfaz para que la lista y el detalle se adapten a la orientación horizontal sin modificar los ViewModel. (Se adjuntaron capturas del celular en horizontal).
+- **Qué respondió (resumen):** Identificó que la barra superior, la barra inferior, el título, el buscador y los filtros ocupaban casi toda la altura disponible. Propuso: (1) mover el menú al costado con `NavigationRail` y reducir la altura de la barra superior; (2) que el encabezado de la lista se desplace junto con los Pokémon usando `LazyVerticalGrid` con columnas adaptables (una en vertical, dos en horizontal); (3) mostrar el detalle en dos columnas, con la imagen a la izquierda y los datos a la derecha, y barras de progreso para las estadísticas.
+- **Qué usamos / qué cambiamos y por qué:** Usamos las tres mejoras, una por commit. La orientación se detecta con `LocalConfiguration` dentro de los composables y no en el ViewModel, así se respeta MVVM. Se compiló (`BUILD SUCCESSFUL`) y se probó girando el celular.
+- **Qué aprendimos:** Que probar la app en horizontal también es parte de probarla, y que la misma información del ViewModel puede mostrarse de forma distinta según el tamaño de la pantalla sin cambiar la lógica.
 
 ---
 
