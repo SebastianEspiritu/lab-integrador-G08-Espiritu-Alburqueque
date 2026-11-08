@@ -13,3 +13,5 @@
 .externalNativeBuild
 .cxx
 local.properties
+# Firebase: contiene la clave de API del proyecto
+google-services.json
