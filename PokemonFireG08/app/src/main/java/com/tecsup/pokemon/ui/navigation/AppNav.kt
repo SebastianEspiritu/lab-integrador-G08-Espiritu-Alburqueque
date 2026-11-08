@@ -1,18 +1,29 @@
 package com.tecsup.pokemon.ui.navigation
 
 import android.net.Uri
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.tecsup.pokemon.AppContainer
+import com.tecsup.pokemon.domain.model.Rol
 import com.tecsup.pokemon.domain.model.Sesion
 import com.tecsup.pokemon.ui.UiState
 import com.tecsup.pokemon.ui.components.Cargando
@@ -34,7 +45,7 @@ fun AppNav(container: AppContainer, modifier: Modifier = Modifier) {
         is UiState.Exito -> {
             val sesion = actual.datos
             if (sesion == null) LoginDestino(container, sesionViewModel, modifier)
-            else Catalogo(container, sesion, modifier)
+            else Catalogo(container, sesion, onCerrarSesion = sesionViewModel::cerrarSesion, modifier = modifier)
         }
     }
 }
@@ -45,9 +56,41 @@ private fun LoginDestino(container: AppContainer, sesionViewModel: SesionViewMod
     LoginScreen(vm, onIngreso = sesionViewModel::sesionIniciada, modifier = modifier)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Catalogo(container: AppContainer, sesion: Sesion, modifier: Modifier) {
+private fun Catalogo(
+    container: AppContainer,
+    sesion: Sesion,
+    onCerrarSesion: () -> Unit,
+    modifier: Modifier
+) {
     val navController = rememberNavController()
+    Scaffold(
+        modifier = modifier,
+        // MainActivity ya aplica los insets del sistema.
+        contentWindowInsets = WindowInsets(0),
+        topBar = {
+            TopAppBar(
+                windowInsets = WindowInsets(0),
+                title = {
+                    Column {
+                        Text(sesion.correo, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            if (sesion.rol == Rol.ADMIN) "Administrador" else "Usuario",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                },
+                actions = { TextButton(onClick = onCerrarSesion) { Text("Cerrar sesión") } }
+            )
+        }
+    ) { padding ->
+        CatalogoNavHost(container, navController, Modifier.padding(padding))
+    }
+}
+
+@Composable
+private fun CatalogoNavHost(container: AppContainer, navController: NavHostController, modifier: Modifier) {
     NavHost(navController, startDestination = "lista", modifier = modifier) {
         composable("lista") {
             val vm: ListaViewModel = viewModel(factory = ListaViewModel.Factory(container))
