@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.tecsup.pokemon.AppContainer
 import com.tecsup.pokemon.data.repository.ItemRepository
 import com.tecsup.pokemon.domain.model.Item
+import com.tecsup.pokemon.notification.Notificador
 import com.tecsup.pokemon.ui.UiState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +19,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 
-class ListaViewModel(private val repo: ItemRepository) : ViewModel() {
+class ListaViewModel(
+    private val repo: ItemRepository,
+    // Interface: el ViewModel no recibe Context. En pruebas se usa uno falso.
+    private val notificador: Notificador = SinNotificaciones
+) : ViewModel() {
     private val _estado = MutableStateFlow<UiState<List<Item>>>(UiState.Cargando)
     private val _busqueda = MutableStateFlow("")
     val busqueda = _busqueda.asStateFlow()
@@ -80,9 +85,11 @@ class ListaViewModel(private val repo: ItemRepository) : ViewModel() {
             _estado.value = if (guardados.isEmpty()) UiState.Cargando else UiState.Exito(guardados)
             _aviso.value = null
             repo.refrescar().fold(
-                onSuccess = {
+                onSuccess = { guardados ->
                     _estado.value = UiState.Exito(repo.items.first())
                     cargado = true
+                    // R09: aviso local al terminar de sincronizar.
+                    notificador.mostrar("Datos actualizados", "Se guardaron $guardados elementos")
                 },
                 onFailure = {
                     val locales = repo.items.first()
@@ -106,7 +113,12 @@ class ListaViewModel(private val repo: ItemRepository) : ViewModel() {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(ListaViewModel::class.java))
             @Suppress("UNCHECKED_CAST")
-            return ListaViewModel(appContainer.itemRepository) as T
+            return ListaViewModel(appContainer.itemRepository, appContainer.notificador) as T
         }
     }
+}
+
+/** Notificador vacío para cuando no se necesita avisar (por ejemplo, pruebas antiguas). */
+private object SinNotificaciones : Notificador {
+    override fun mostrar(titulo: String, texto: String) = Unit
 }

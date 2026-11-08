@@ -8,6 +8,8 @@ import com.tecsup.pokemon.data.local.AppDatabase
 import com.tecsup.pokemon.data.remote.RetrofitClient
 import com.tecsup.pokemon.data.repository.ItemRepository
 import com.tecsup.pokemon.data.repository.ItemRepositoryImpl
+import com.tecsup.pokemon.notification.Notificador
+import com.tecsup.pokemon.notification.NotificadorAndroid
 
 class AppContainer(context: Context) {
     private val appContext = context.applicationContext
@@ -19,4 +21,5 @@ class AppContainer(context: Context) {
     }
     // Las pantallas y los ViewModel dependen de la interface, no de Firebase.
     val authRepository: AuthRepository by lazy { FirebaseAuthRepository() }
+    val notificador: Notificador by lazy { NotificadorAndroid(appContext) }
 }

@@ -33,6 +33,7 @@ import com.tecsup.pokemon.ui.UiState
 import com.tecsup.pokemon.ui.admin.AdminScreen
 import com.tecsup.pokemon.ui.admin.AdminViewModel
 import com.tecsup.pokemon.ui.components.Cargando
+import com.tecsup.pokemon.ui.components.PedirPermisoNotificaciones
 import com.tecsup.pokemon.ui.detalle.DetalleScreen
 import com.tecsup.pokemon.ui.detalle.DetalleViewModel
 import com.tecsup.pokemon.ui.favoritos.FavoritosScreen
@@ -46,6 +47,8 @@ import com.tecsup.pokemon.ui.login.LoginViewModel
 fun AppNav(container: AppContainer, modifier: Modifier = Modifier) {
     val sesionViewModel: SesionViewModel = viewModel(factory = SesionViewModel.Factory(container))
     val estadoSesion by sesionViewModel.estado.collectAsStateWithLifecycle()
+    // Se pide al abrir la app para que la primera sincronización ya pueda avisar.
+    PedirPermisoNotificaciones()
 
     when (val actual = estadoSesion) {
         UiState.Cargando -> Cargando(modifier.fillMaxSize())

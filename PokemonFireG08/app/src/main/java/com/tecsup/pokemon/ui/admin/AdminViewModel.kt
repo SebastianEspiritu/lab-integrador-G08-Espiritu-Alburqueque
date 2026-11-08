@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.tecsup.pokemon.AppContainer
 import com.tecsup.pokemon.data.repository.ItemRepository
+import com.tecsup.pokemon.notification.Notificador
 import com.tecsup.pokemon.ui.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,7 +19,10 @@ import kotlinx.coroutines.launch
 data class ResumenAdmin(val totalGuardados: Int, val totalFavoritos: Int)
 
 /** Panel solo para ADMIN: totales de Room, sincronizar y limpiar caché. */
-class AdminViewModel(private val repo: ItemRepository) : ViewModel() {
+class AdminViewModel(
+    private val repo: ItemRepository,
+    private val notificador: Notificador
+) : ViewModel() {
     // Los totales se recalculan solos cuando Room cambia (favoritos, sincronizar, limpiar).
     val estado: StateFlow<UiState<ResumenAdmin>> =
         combine(repo.items, repo.favoritos) { items, favoritos ->
@@ -38,7 +42,10 @@ class AdminViewModel(private val repo: ItemRepository) : ViewModel() {
         _ocupado.value = true
         viewModelScope.launch {
             repo.refrescar()
-                .onSuccess { n -> _mensaje.value = "Sincronización completa: se guardaron $n Pokémon." }
+                .onSuccess { n ->
+                    _mensaje.value = "Sincronización completa: se guardaron $n Pokémon."
+                    notificador.mostrar("Datos actualizados", "Se guardaron $n elementos")
+                }
                 .onFailure { _mensaje.value = it.message ?: "No se pudo sincronizar." }
             _ocupado.value = false
         }
@@ -60,7 +67,7 @@ class AdminViewModel(private val repo: ItemRepository) : ViewModel() {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(AdminViewModel::class.java))
             @Suppress("UNCHECKED_CAST")
-            return AdminViewModel(container.itemRepository) as T
+            return AdminViewModel(container.itemRepository, container.notificador) as T
         }
     }
 }
