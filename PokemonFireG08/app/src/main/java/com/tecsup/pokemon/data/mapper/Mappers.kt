@@ -4,6 +4,8 @@ import com.tecsup.pokemon.data.remote.dto.ItemDto
 import com.tecsup.pokemon.data.remote.dto.TipoDto
 import com.tecsup.pokemon.domain.model.EstadisticasBasicas
 import com.tecsup.pokemon.domain.model.Item
+import com.tecsup.pokemon.data.local.ItemEntity
+import com.tecsup.pokemon.data.local.EstadisticasEntity
 
 /** Solo se conoce el tipo consultado; los demás tipos requieren el detalle. */
 fun TipoDto.aModelos(): List<Item> = pokemon.map { entrada ->
@@ -13,6 +15,22 @@ fun TipoDto.aModelos(): List<Item> = pokemon.map { entrada ->
         tipos = listOf(name)
     )
 }
+
+fun Item.aEntity(detalleDisponible: Boolean = false): ItemEntity = ItemEntity(
+    id = id, nombre = nombre, imagenUrl = imagenUrl, tipos = tipos,
+    estadisticas = estadisticas?.let {
+        EstadisticasEntity(it.hp, it.ataque, it.defensa, it.ataqueEspecial, it.defensaEspecial, it.velocidad)
+    },
+    esFavorito = esFavorito, detalleDisponible = detalleDisponible
+)
+
+fun ItemEntity.aModelo(): Item = Item(
+    id = id, nombre = nombre, imagenUrl = imagenUrl, tipos = tipos,
+    estadisticas = estadisticas?.let {
+        EstadisticasBasicas(it.hp, it.ataque, it.defensa, it.ataqueEspecial, it.defensaEspecial, it.velocidad)
+    },
+    esFavorito = esFavorito
+)
 
 fun ItemDto.aModelo(esFavorito: Boolean = false): Item {
     val valores = stats.associate { it.stat.name to it.baseStat }

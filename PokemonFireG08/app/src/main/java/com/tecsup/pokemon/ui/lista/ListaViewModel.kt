@@ -17,12 +17,16 @@ import kotlinx.coroutines.launch
 class ListaViewModel(private val repo: ItemRepository) : ViewModel() {
     private val _estado = MutableStateFlow<UiState<List<Item>>>(UiState.Cargando)
     val estado: StateFlow<UiState<List<Item>>> = _estado.asStateFlow()
+    private val _aviso = MutableStateFlow<String?>(null)
+    val aviso: StateFlow<String?> = _aviso.asStateFlow()
     private var carga: Job? = null
     private var cargado = false
 
     init {
         viewModelScope.launch {
-            repo.items.collect { if (cargado) _estado.value = UiState.Exito(it) }
+            repo.items.collect {
+                if (it.isNotEmpty() || cargado) _estado.value = UiState.Exito(it)
+            }
         }
         cargar()
     }
@@ -31,13 +35,24 @@ class ListaViewModel(private val repo: ItemRepository) : ViewModel() {
         if (carga?.isActive == true) return
         carga = viewModelScope.launch {
             cargado = false
-            _estado.value = UiState.Cargando
+            val guardados = repo.items.first()
+            _estado.value = if (guardados.isEmpty()) UiState.Cargando else UiState.Exito(guardados)
+            _aviso.value = null
             repo.refrescar().fold(
                 onSuccess = {
                     _estado.value = UiState.Exito(repo.items.first())
                     cargado = true
                 },
-                onFailure = { _estado.value = UiState.Error(it.message ?: "No se pudo cargar la lista.") }
+                onFailure = {
+                    val locales = repo.items.first()
+                    if (locales.isEmpty()) {
+                        _estado.value = UiState.Error(it.message ?: "No se pudo cargar la lista.")
+                    } else {
+                        _estado.value = UiState.Exito(locales)
+                        _aviso.value = "${it.message ?: "No se pudo sincronizar."} Mostrando datos guardados."
+                        cargado = true
+                    }
+                }
             )
         }
     }

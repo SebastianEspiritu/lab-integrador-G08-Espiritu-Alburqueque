@@ -32,7 +32,7 @@ class RepositoryViewModelTest {
 
     @Test fun listaCargaReferenciasSinPedirDetalles() = runTest(dispatcher) {
         val api = FakeApi()
-        val repo = ItemRepositoryImpl(api)
+        val repo = ItemRepositoryImpl(api, FakeItemDao(), dispatcher)
         val vm = retener("lista", ListaViewModel(repo))
         assertEquals(UiState.Cargando, vm.estado.value)
         advanceUntilIdle()
@@ -45,14 +45,14 @@ class RepositoryViewModelTest {
 
     @Test fun listaVaciaEsExitoYNoQuedaCargando() = runTest(dispatcher) {
         val api = FakeApi().apply { vacia = true }
-        val vm = retener("lista", ListaViewModel(ItemRepositoryImpl(api)))
+        val vm = retener("lista", ListaViewModel(ItemRepositoryImpl(api, FakeItemDao(), dispatcher)))
         advanceUntilIdle()
         assertEquals(UiState.Exito(emptyList<Any>()), vm.estado.value)
     }
 
     @Test fun listaMuestraErrorYPermiteReintentar() = runTest(dispatcher) {
         val api = FakeApi().apply { fallo = IOException("sin red") }
-        val vm = retener("lista", ListaViewModel(ItemRepositoryImpl(api)))
+        val vm = retener("lista", ListaViewModel(ItemRepositoryImpl(api, FakeItemDao(), dispatcher)))
         advanceUntilIdle()
         assertTrue((vm.estado.value as UiState.Error).mensaje.contains("conexión"))
         api.fallo = null
@@ -63,9 +63,9 @@ class RepositoryViewModelTest {
         assertEquals(2, api.llamadasLista)
     }
 
-    @Test fun detalleActualizaListaYReutilizaCacheEnMemoria() = runTest(dispatcher) {
+    @Test fun detalleActualizaListaYReutilizaAlmacenamientoLocal() = runTest(dispatcher) {
         val api = FakeApi()
-        val repo = ItemRepositoryImpl(api)
+        val repo = ItemRepositoryImpl(api, FakeItemDao(), dispatcher)
         val lista = retener("lista", ListaViewModel(repo))
         advanceUntilIdle()
         val detalle = retener("detalle", DetalleViewModel(repo, "charmander"))
@@ -82,7 +82,7 @@ class RepositoryViewModelTest {
         val api = FakeApi().apply {
             fallo = HttpException(Response.error<Any>(403, "Forbidden".toResponseBody()))
         }
-        val vm = retener("detalle", DetalleViewModel(ItemRepositoryImpl(api), "charmander"))
+        val vm = retener("detalle", DetalleViewModel(ItemRepositoryImpl(api, FakeItemDao(), dispatcher), "charmander"))
         advanceUntilIdle()
         assertTrue((vm.estado.value as UiState.Error).mensaje.contains("403"))
         api.fallo = null
@@ -91,9 +91,10 @@ class RepositoryViewModelTest {
         assertTrue(vm.estado.value is UiState.Exito)
     }
 
-    @Test fun favoritosSonTemporalesYSeConservanDuranteRefresco() = runTest(dispatcher) {
+    @Test fun favoritosSeConservanDuranteRefrescoYAlRecrearRepositorio() = runTest(dispatcher) {
         val api = FakeApi()
-        val repo = ItemRepositoryImpl(api)
+        val dao = FakeItemDao()
+        val repo = ItemRepositoryImpl(api, dao, dispatcher)
         repo.refrescar().getOrThrow()
         repo.alternarFavorito("charmander")
         repo.obtenerDetalle("charmander").getOrThrow()
@@ -101,8 +102,9 @@ class RepositoryViewModelTest {
         assertEquals(1, repo.cantidadFavoritos())
         assertEquals(1, repo.favoritos.first().size)
         assertTrue(repo.items.first().single().esFavorito)
-        val otraInstancia = ItemRepositoryImpl(api)
-        assertEquals(0, otraInstancia.cantidadGuardada())
+        val otraInstancia = ItemRepositoryImpl(api, dao, dispatcher)
+        assertEquals(1, otraInstancia.cantidadGuardada())
+        assertEquals(1, otraInstancia.cantidadFavoritos())
         repo.limpiarCache()
         assertEquals(0, repo.cantidadGuardada())
         assertEquals(0, repo.cantidadFavoritos())
@@ -111,9 +113,37 @@ class RepositoryViewModelTest {
     @Test fun cancelacionSePropagaSinConvertirseEnError() = runTest(dispatcher) {
         val api = FakeApi().apply { fallo = CancellationException("cancelada") }
         try {
-            ItemRepositoryImpl(api).refrescar()
+            ItemRepositoryImpl(api, FakeItemDao(), dispatcher).refrescar()
             fail("Debe propagar cancelación")
         } catch (_: CancellationException) { /* esperado */ }
+    }
+
+    @Test fun listaMuestraLocalesSiNoHayInternetYRecuperaSincronizacion() = runTest(dispatcher) {
+        val dao = FakeItemDao()
+        val api = FakeApi()
+        ItemRepositoryImpl(api, dao, dispatcher).refrescar().getOrThrow()
+        api.fallo = IOException("sin red")
+        val vm = retener("offline", ListaViewModel(ItemRepositoryImpl(api, dao, dispatcher)))
+        advanceUntilIdle()
+        assertEquals("charmander", (vm.estado.value as UiState.Exito).datos.single().id)
+        assertTrue(requireNotNull(vm.aviso.value).contains("datos guardados"))
+        api.fallo = null
+        vm.cargar()
+        advanceUntilIdle()
+        assertNull(vm.aviso.value)
+        assertTrue(vm.estado.value is UiState.Exito)
+    }
+
+    @Test fun detalleGuardadoSeAbreSinInternetTrasRecrearRepositorio() = runTest(dispatcher) {
+        val dao = FakeItemDao()
+        val api = FakeApi()
+        val primero = ItemRepositoryImpl(api, dao, dispatcher)
+        primero.refrescar().getOrThrow()
+        val esperado = primero.obtenerDetalle("charmander").getOrThrow()
+        api.fallo = IOException("sin red")
+        val segundo = ItemRepositoryImpl(api, dao, dispatcher)
+        assertEquals(esperado, segundo.obtenerDetalle("charmander").getOrThrow())
+        assertEquals(1, api.llamadasDetalle)
     }
 
     private class FakeApi : ApiService {

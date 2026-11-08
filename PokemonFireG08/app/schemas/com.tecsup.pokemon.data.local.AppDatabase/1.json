@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "765c99e9625d3ffdc1dc7a4209cdff50",
+    "entities": [
+      {
+        "tableName": "items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `nombre` TEXT NOT NULL, `imagenUrl` TEXT, `tipos` TEXT NOT NULL, `esFavorito` INTEGER NOT NULL, `detalleDisponible` INTEGER NOT NULL, `stats_hp` INTEGER, `stats_ataque` INTEGER, `stats_defensa` INTEGER, `stats_ataqueEspecial` INTEGER, `stats_defensaEspecial` INTEGER, `stats_velocidad` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "imagenUrl",
+            "columnName": "imagenUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "tipos",
+            "columnName": "tipos",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "esFavorito",
+            "columnName": "esFavorito",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "detalleDisponible",
+            "columnName": "detalleDisponible",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estadisticas.hp",
+            "columnName": "stats_hp",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "estadisticas.ataque",
+            "columnName": "stats_ataque",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "estadisticas.defensa",
+            "columnName": "stats_defensa",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "estadisticas.ataqueEspecial",
+            "columnName": "stats_ataqueEspecial",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "estadisticas.defensaEspecial",
+            "columnName": "stats_defensaEspecial",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "estadisticas.velocidad",
+            "columnName": "stats_velocidad",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '765c99e9625d3ffdc1dc7a4209cdff50')"
+    ]
+  }
+}

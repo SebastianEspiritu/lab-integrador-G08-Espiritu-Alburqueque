@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -33,6 +34,7 @@ fun ListaScreen(
     modifier: Modifier = Modifier
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
+    val aviso by viewModel.aviso.collectAsStateWithLifecycle()
 
     Column(modifier = modifier.fillMaxSize()) {
         Text(
@@ -40,6 +42,10 @@ fun ListaScreen(
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.padding(16.dp)
         )
+        aviso?.let { mensaje ->
+            Text(mensaje, modifier = Modifier.padding(horizontal = 16.dp))
+            TextButton(onClick = viewModel::cargar) { Text("Reintentar sincronización") }
+        }
         when (val actual = estado) {
             UiState.Cargando -> Cargando(modifier = Modifier.fillMaxSize())
             is UiState.Error -> ErrorView(
