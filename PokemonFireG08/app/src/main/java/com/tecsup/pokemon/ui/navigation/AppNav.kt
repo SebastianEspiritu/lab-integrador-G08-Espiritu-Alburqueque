@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -16,10 +18,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.tecsup.pokemon.AppContainer
@@ -29,6 +33,8 @@ import com.tecsup.pokemon.ui.UiState
 import com.tecsup.pokemon.ui.components.Cargando
 import com.tecsup.pokemon.ui.detalle.DetalleScreen
 import com.tecsup.pokemon.ui.detalle.DetalleViewModel
+import com.tecsup.pokemon.ui.favoritos.FavoritosScreen
+import com.tecsup.pokemon.ui.favoritos.FavoritosViewModel
 import com.tecsup.pokemon.ui.lista.ListaScreen
 import com.tecsup.pokemon.ui.lista.ListaViewModel
 import com.tecsup.pokemon.ui.login.LoginScreen
@@ -83,9 +89,39 @@ private fun Catalogo(
                 },
                 actions = { TextButton(onClick = onCerrarSesion) { Text("Cerrar sesión") } }
             )
-        }
+        },
+        bottomBar = { BarraInferior(navController, destinosPara(sesion)) }
     ) { padding ->
         CatalogoNavHost(container, navController, Modifier.padding(padding))
+    }
+}
+
+private data class Destino(val ruta: String, val titulo: String, val icono: String)
+
+private val DESTINO_LISTA = Destino("lista", "Catálogo", "🔥")
+private val DESTINO_FAVORITOS = Destino("favoritos", "Favoritos", "♥")
+
+private fun destinosPara(sesion: Sesion): List<Destino> = listOf(DESTINO_LISTA, DESTINO_FAVORITOS)
+
+@Composable
+private fun BarraInferior(navController: NavHostController, destinos: List<Destino>) {
+    val entrada by navController.currentBackStackEntryAsState()
+    val rutaActual = entrada?.destination?.route
+    NavigationBar(windowInsets = WindowInsets(0)) {
+        destinos.forEach { destino ->
+            NavigationBarItem(
+                selected = rutaActual == destino.ruta,
+                onClick = {
+                    navController.navigate(destino.ruta) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                icon = { Text(destino.icono) },
+                label = { Text(destino.titulo) }
+            )
+        }
     }
 }
 
@@ -100,6 +136,10 @@ private fun CatalogoNavHost(container: AppContainer, navController: NavHostContr
             val id = requireNotNull(entry.arguments?.getString("id"))
             val vm: DetalleViewModel = viewModel(factory = DetalleViewModel.Factory(container, id))
             DetalleScreen(vm, onVolver = { navController.popBackStack() })
+        }
+        composable("favoritos") {
+            val vm: FavoritosViewModel = viewModel(factory = FavoritosViewModel.Factory(container))
+            FavoritosScreen(vm, onItemClick = { navController.navigate("detalle/${Uri.encode(it)}") { launchSingleTop = true } })
         }
     }
 }

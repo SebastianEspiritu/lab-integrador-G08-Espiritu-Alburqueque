@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -131,17 +132,22 @@ fun ListaScreen(
                                         Text(item.nombre, style = MaterialTheme.typography.titleMedium)
                                         Text(item.tipos.joinToString(" · "))
                                     }
-                                    Text(
-                                        text = if (item.esFavorito) "♥" else "♡",
-                                        color = MaterialTheme.colorScheme.primary,
+                                    IconButton(
+                                        onClick = { viewModel.alternarFavorito(item.id) },
                                         modifier = Modifier.semantics {
                                             contentDescription = if (item.esFavorito) {
-                                                "Favorito"
+                                                "Quitar ${item.nombre} de favoritos"
                                             } else {
-                                                "No es favorito"
+                                                "Agregar ${item.nombre} a favoritos"
                                             }
                                         }
-                                    )
+                                    ) {
+                                        Text(
+                                            text = if (item.esFavorito) "♥" else "♡",
+                                            color = MaterialTheme.colorScheme.primary,
+                                            style = MaterialTheme.typography.titleLarge
+                                        )
+                                    }
                                 }
                             }
                         }

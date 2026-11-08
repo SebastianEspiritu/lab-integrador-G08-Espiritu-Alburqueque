@@ -30,6 +30,14 @@ class DetalleViewModel(private val repo: ItemRepository, private val id: String)
         }
     }
 
+    fun alternarFavorito() {
+        val actual = _estado.value as? UiState.Exito ?: return
+        viewModelScope.launch {
+            repo.alternarFavorito(id)
+            _estado.value = UiState.Exito(actual.datos.copy(esFavorito = !actual.datos.esFavorito))
+        }
+    }
+
     class Factory(private val container: AppContainer, private val id: String) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(DetalleViewModel::class.java))

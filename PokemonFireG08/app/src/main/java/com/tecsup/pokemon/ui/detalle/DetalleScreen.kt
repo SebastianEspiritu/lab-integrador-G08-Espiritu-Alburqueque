@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,6 +36,9 @@ fun DetalleScreen(viewModel: DetalleViewModel, onVolver: () -> Unit, modifier: M
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(item.nombre, style = MaterialTheme.typography.headlineMedium)
+                    OutlinedButton(onClick = viewModel::alternarFavorito) {
+                        Text(if (item.esFavorito) "♥ Quitar de favoritos" else "♡ Agregar a favoritos")
+                    }
                     SubcomposeAsyncImage(
                         model = item.imagenUrl,
                         contentDescription = "Imagen de ${item.nombre}",

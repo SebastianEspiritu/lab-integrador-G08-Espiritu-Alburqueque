@@ -98,6 +98,10 @@ class ListaViewModel(private val repo: ItemRepository) : ViewModel() {
         }
     }
 
+    fun alternarFavorito(id: String) {
+        viewModelScope.launch { repo.alternarFavorito(id) }
+    }
+
     class Factory(private val appContainer: AppContainer) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(ListaViewModel::class.java))
