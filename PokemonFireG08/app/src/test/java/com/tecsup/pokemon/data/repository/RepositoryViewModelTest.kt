@@ -9,6 +9,8 @@ import com.tecsup.pokemon.ui.detalle.DetalleViewModel
 import com.tecsup.pokemon.ui.lista.ListaViewModel
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -146,20 +148,92 @@ class RepositoryViewModelTest {
         assertEquals(1, api.llamadasDetalle)
     }
 
+    @Test fun detalleLocalNoEsperaUnaSincronizacionRemotaLenta() = runTest(dispatcher) {
+        val dao = FakeItemDao()
+        val api = FakeApi()
+        val repo = ItemRepositoryImpl(api, dao, dispatcher)
+        val esperado = repo.obtenerDetalle("charmander").getOrThrow()
+        val barrera = CompletableDeferred<Unit>()
+        api.bloqueoLista = barrera
+        val sincronizacion = async { repo.refrescar() }
+        runCurrent()
+        val detalle = async { repo.obtenerDetalle("charmander") }
+        runCurrent()
+        try {
+            assertTrue("El detalle local no debe esperar la red", detalle.isCompleted)
+            assertEquals(esperado, detalle.await().getOrThrow())
+        } finally {
+            barrera.complete(Unit)
+            sincronizacion.await()
+        }
+    }
+
+    @Test fun sincronizarReferenciasDuplicadasNoDuplicaFilas() = runTest(dispatcher) {
+        val api = FakeApi().apply { duplicados = true }
+        val repo = ItemRepositoryImpl(api, FakeItemDao(), dispatcher)
+        assertEquals(1, repo.refrescar().getOrThrow())
+        repo.refrescar().getOrThrow()
+        assertEquals(1, repo.cantidadGuardada())
+    }
+
+    @Test fun errorHttpNoBorraDetalleNiFavoritosGuardados() = runTest(dispatcher) {
+        val api = FakeApi()
+        val repo = ItemRepositoryImpl(api, FakeItemDao(), dispatcher)
+        repo.refrescar().getOrThrow()
+        repo.alternarFavorito("charmander")
+        val esperado = repo.obtenerDetalle("charmander").getOrThrow()
+        api.fallo = HttpException(Response.error<Any>(503, "Unavailable".toResponseBody()))
+        assertTrue(requireNotNull(repo.refrescar().exceptionOrNull()).message!!.contains("503"))
+        assertEquals(esperado, repo.items.first().single())
+        assertEquals(1, repo.cantidadFavoritos())
+    }
+
+    @Test fun solicitudesConcurrentesDelMismoDetalleHacenUnaPeticion() = runTest(dispatcher) {
+        val api = FakeApi()
+        val repo = ItemRepositoryImpl(api, FakeItemDao(), dispatcher)
+        val barrera = CompletableDeferred<Unit>()
+        api.bloqueoDetalle = barrera
+        val primero = async { repo.obtenerDetalle("charmander") }
+        val segundo = async { repo.obtenerDetalle("charmander") }
+        runCurrent()
+        assertEquals(1, api.llamadasDetalle)
+        barrera.complete(Unit)
+        assertEquals(primero.await().getOrThrow(), segundo.await().getOrThrow())
+        assertEquals(1, api.llamadasDetalle)
+    }
+
+    @Test fun limpiarCacheEliminaDetalleYPermiteDescargarDeNuevo() = runTest(dispatcher) {
+        val api = FakeApi()
+        val repo = ItemRepositoryImpl(api, FakeItemDao(), dispatcher)
+        repo.obtenerDetalle("charmander").getOrThrow()
+        repo.alternarFavorito("charmander")
+        repo.limpiarCache()
+        assertTrue(repo.items.first().isEmpty())
+        assertTrue(repo.favoritos.first().isEmpty())
+        assertFalse(repo.obtenerDetalle("charmander").getOrThrow().esFavorito)
+        assertEquals(2, api.llamadasDetalle)
+    }
+
     private class FakeApi : ApiService {
         var fallo: Exception? = null
         var vacia = false
         var llamadasLista = 0
         var llamadasDetalle = 0
+        var bloqueoLista: CompletableDeferred<Unit>? = null
+        var bloqueoDetalle: CompletableDeferred<Unit>? = null
+        var duplicados = false
         override suspend fun listar(): TipoDto {
             llamadasLista++
+            bloqueoLista?.await()
             fallo?.let { throw it }
-            return TipoDto("fire", if (vacia) emptyList() else listOf(
+            val referencias = if (vacia) emptyList() else listOf(
                 PokemonPorTipoDto(1, RecursoDto("charmander", "https://pokeapi.co/api/v2/pokemon/4/"))
-            ))
+            )
+            return TipoDto("fire", if (duplicados) referencias + referencias else referencias)
         }
         override suspend fun obtenerDetalle(nombre: String): ItemDto {
             llamadasDetalle++
+            bloqueoDetalle?.await()
             fallo?.let { throw it }
             return ItemDto(
                 name = nombre,

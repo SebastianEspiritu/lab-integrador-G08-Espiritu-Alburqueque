@@ -35,7 +35,11 @@ class ItemRepositoryImpl(
     }
 
     override suspend fun obtenerDetalle(id: String): Result<Item> = resultado {
+        // Una ficha local no debe esperar una sincronización remota en curso.
+        val guardado = dao.porId(id)
+        if (guardado?.detalleDisponible == true) return@resultado guardado.aModelo()
         mutex.withLock {
+            // Otra solicitud pudo guardar el detalle mientras esperábamos el bloqueo.
             val local = dao.porId(id)
             if (local?.detalleDisponible == true) return@withLock local.aModelo()
             dao.guardarDetalle(api.obtenerDetalle(id).aModelo().aEntity(detalleDisponible = true))

@@ -81,6 +81,34 @@ class ItemDaoTest {
         }
     }
 
+    @Test fun detalleIncompletoNoBorraFavoritoNiDatosDisponibles() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        try {
+            val dao = db.itemDao()
+            dao.guardarDetalle(item.aEntity(true))
+            dao.alternarFavorito(item.id)
+            dao.guardarDetalle(ItemEntity(item.id, item.nombre))
+            val guardado = requireNotNull(dao.porId(item.id))
+            assertEquals(item.imagenUrl, guardado.imagenUrl)
+            assertEquals(item.tipos, guardado.tipos)
+            assertEquals(109, requireNotNull(guardado.estadisticas).ataqueEspecial)
+            assertTrue(guardado.esFavorito)
+            assertEquals(1, dao.contar())
+        } finally { db.close() }
+    }
+
+    @Test fun referenciasRepetidasYVaciasNoBorranCache() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        try {
+            val dao = db.itemDao()
+            val fila = item.aEntity(true)
+            dao.guardarReferencias(listOf(fila, fila))
+            dao.guardarReferencias(emptyList())
+            assertEquals(1, dao.contar())
+            assertEquals(fila, dao.porId(item.id))
+        } finally { db.close() }
+    }
+
     @Test fun entidadSinDetalleNoInventaEstadisticas() = runBlocking {
         val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
         try {
