@@ -30,6 +30,8 @@ import com.tecsup.pokemon.AppContainer
 import com.tecsup.pokemon.domain.model.Rol
 import com.tecsup.pokemon.domain.model.Sesion
 import com.tecsup.pokemon.ui.UiState
+import com.tecsup.pokemon.ui.admin.AdminScreen
+import com.tecsup.pokemon.ui.admin.AdminViewModel
 import com.tecsup.pokemon.ui.components.Cargando
 import com.tecsup.pokemon.ui.detalle.DetalleScreen
 import com.tecsup.pokemon.ui.detalle.DetalleViewModel
@@ -92,7 +94,7 @@ private fun Catalogo(
         },
         bottomBar = { BarraInferior(navController, destinosPara(sesion)) }
     ) { padding ->
-        CatalogoNavHost(container, navController, Modifier.padding(padding))
+        CatalogoNavHost(container, sesion, navController, Modifier.padding(padding))
     }
 }
 
@@ -100,8 +102,12 @@ private data class Destino(val ruta: String, val titulo: String, val icono: Stri
 
 private val DESTINO_LISTA = Destino("lista", "Catálogo", "🔥")
 private val DESTINO_FAVORITOS = Destino("favoritos", "Favoritos", "♥")
+private val DESTINO_ADMIN = Destino("admin", "Admin", "⚙")
 
-private fun destinosPara(sesion: Sesion): List<Destino> = listOf(DESTINO_LISTA, DESTINO_FAVORITOS)
+// R02: el rol viene de Firestore; aquí solo se decide qué pestañas se muestran.
+private fun destinosPara(sesion: Sesion): List<Destino> =
+    if (sesion.rol == Rol.ADMIN) listOf(DESTINO_LISTA, DESTINO_FAVORITOS, DESTINO_ADMIN)
+    else listOf(DESTINO_LISTA, DESTINO_FAVORITOS)
 
 @Composable
 private fun BarraInferior(navController: NavHostController, destinos: List<Destino>) {
@@ -126,7 +132,12 @@ private fun BarraInferior(navController: NavHostController, destinos: List<Desti
 }
 
 @Composable
-private fun CatalogoNavHost(container: AppContainer, navController: NavHostController, modifier: Modifier) {
+private fun CatalogoNavHost(
+    container: AppContainer,
+    sesion: Sesion,
+    navController: NavHostController,
+    modifier: Modifier
+) {
     NavHost(navController, startDestination = "lista", modifier = modifier) {
         composable("lista") {
             val vm: ListaViewModel = viewModel(factory = ListaViewModel.Factory(container))
@@ -140,6 +151,13 @@ private fun CatalogoNavHost(container: AppContainer, navController: NavHostContr
         composable("favoritos") {
             val vm: FavoritosViewModel = viewModel(factory = FavoritosViewModel.Factory(container))
             FavoritosScreen(vm, onItemClick = { navController.navigate("detalle/${Uri.encode(it)}") { launchSingleTop = true } })
+        }
+        // La ruta admin ni siquiera existe para un USUARIO.
+        if (sesion.rol == Rol.ADMIN) {
+            composable("admin") {
+                val vm: AdminViewModel = viewModel(factory = AdminViewModel.Factory(container))
+                AdminScreen(vm)
+            }
         }
     }
 }
