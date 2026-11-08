@@ -12,11 +12,52 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 
 class ListaViewModel(private val repo: ItemRepository) : ViewModel() {
     private val _estado = MutableStateFlow<UiState<List<Item>>>(UiState.Cargando)
-    val estado: StateFlow<UiState<List<Item>>> = _estado.asStateFlow()
+    private val _busqueda = MutableStateFlow("")
+    val busqueda = _busqueda.asStateFlow()
+    private val _tipoSeleccionado = MutableStateFlow<String?>(null)
+    val tipoSeleccionado = _tipoSeleccionado.asStateFlow()
+
+    // Se filtra el estado local, sin volver a llamar a refrescar ni a la API.
+    val estado: StateFlow<UiState<List<Item>>> = combine(_estado, _busqueda, _tipoSeleccionado) { actual, texto, tipo ->
+        if (actual is UiState.Exito) {
+            val consulta = texto.trim()
+            UiState.Exito(actual.datos.filter { item ->
+                item.nombre.contains(consulta, ignoreCase = true) &&
+                    (tipo == null || item.tipos.any { it.equals(tipo, ignoreCase = true) })
+            })
+        } else actual
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, UiState.Cargando)
+
+    val tiposDisponibles = _estado.map { actual ->
+        if (actual is UiState.Exito) {
+            actual.datos.flatMap { it.tipos }.map { it.trim().lowercase() }
+                .filter { it.isNotEmpty() }.distinct().sorted()
+        } else emptyList()
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val filtrosActivos = combine(_busqueda, _tipoSeleccionado) { texto, tipo ->
+        texto.isNotBlank() || tipo != null
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    fun buscar(texto: String) { _busqueda.value = texto }
+    fun seleccionarTipo(tipo: String?) {
+        val normalizado = tipo?.trim()?.lowercase()
+        if (normalizado == null || normalizado in tiposDisponibles.value) {
+            _tipoSeleccionado.value = normalizado
+        }
+    }
+    fun restablecerFiltros() {
+        _busqueda.value = ""
+        _tipoSeleccionado.value = null
+    }
     private val _aviso = MutableStateFlow<String?>(null)
     val aviso: StateFlow<String?> = _aviso.asStateFlow()
     private var carga: Job? = null
