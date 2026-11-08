@@ -2,6 +2,8 @@ package com.tecsup.pokemon
 
 import android.content.Context
 import androidx.room.Room
+import com.tecsup.pokemon.data.auth.AuthRepository
+import com.tecsup.pokemon.data.auth.FirebaseAuthRepository
 import com.tecsup.pokemon.data.local.AppDatabase
 import com.tecsup.pokemon.data.remote.RetrofitClient
 import com.tecsup.pokemon.data.repository.ItemRepository
@@ -15,4 +17,6 @@ class AppContainer(context: Context) {
     val itemRepository: ItemRepository by lazy {
         ItemRepositoryImpl(RetrofitClient.apiService, database.itemDao())
     }
+    // Las pantallas y los ViewModel dependen de la interface, no de Firebase.
+    val authRepository: AuthRepository by lazy { FirebaseAuthRepository() }
 }
