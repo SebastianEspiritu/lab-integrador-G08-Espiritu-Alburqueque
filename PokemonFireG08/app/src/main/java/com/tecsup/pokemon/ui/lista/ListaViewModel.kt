@@ -2,37 +2,51 @@ package com.tecsup.pokemon.ui.lista
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import com.tecsup.pokemon.AppContainer
+import com.tecsup.pokemon.data.repository.ItemRepository
 import com.tecsup.pokemon.domain.model.Item
 import com.tecsup.pokemon.ui.UiState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
-class ListaViewModel(private val cargarItems: () -> List<Item>) : ViewModel() {
+class ListaViewModel(private val repo: ItemRepository) : ViewModel() {
     private val _estado = MutableStateFlow<UiState<List<Item>>>(UiState.Cargando)
     val estado: StateFlow<UiState<List<Item>>> = _estado.asStateFlow()
+    private var carga: Job? = null
+    private var cargado = false
 
     init {
+        viewModelScope.launch {
+            repo.items.collect { if (cargado) _estado.value = UiState.Exito(it) }
+        }
         cargar()
     }
 
     fun cargar() {
-        _estado.value = UiState.Cargando
-        _estado.value = try {
-            UiState.Exito(cargarItems())
-        } catch (_: Exception) {
-            UiState.Error("No se pudo cargar la lista de Pokémon.")
+        if (carga?.isActive == true) return
+        carga = viewModelScope.launch {
+            cargado = false
+            _estado.value = UiState.Cargando
+            repo.refrescar().fold(
+                onSuccess = {
+                    _estado.value = UiState.Exito(repo.items.first())
+                    cargado = true
+                },
+                onFailure = { _estado.value = UiState.Error(it.message ?: "No se pudo cargar la lista.") }
+            )
         }
     }
 
     class Factory(private val appContainer: AppContainer) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            require(modelClass.isAssignableFrom(ListaViewModel::class.java)) {
-                "ViewModel no compatible con ListaViewModel.Factory"
-            }
+            require(modelClass.isAssignableFrom(ListaViewModel::class.java))
             @Suppress("UNCHECKED_CAST")
-            return ListaViewModel(appContainer::cargarItemsSimulados) as T
+            return ListaViewModel(appContainer.itemRepository) as T
         }
     }
 }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
@@ -19,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tecsup.pokemon.ui.UiState
 import com.tecsup.pokemon.ui.components.Cargando
@@ -63,8 +65,13 @@ fun ListaScreen(
                                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // H4 no proporciona imágenes ni realiza descargas.
-                                    Text(
+                                    if (item.imagenUrl != null) {
+                                        AsyncImage(
+                                            model = item.imagenUrl,
+                                            contentDescription = "Imagen de ${item.nombre}",
+                                            modifier = Modifier.size(56.dp)
+                                        )
+                                    } else Text(
                                         text = "🔥",
                                         modifier = Modifier.semantics {
                                             contentDescription = "Imagen no disponible"

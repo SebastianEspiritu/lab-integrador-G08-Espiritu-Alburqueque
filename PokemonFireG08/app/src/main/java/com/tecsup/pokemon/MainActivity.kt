@@ -9,30 +9,29 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.tecsup.pokemon.ui.lista.ListaScreen
-import com.tecsup.pokemon.ui.lista.ListaViewModel
+import androidx.lifecycle.ViewModel
+import com.tecsup.pokemon.ui.navigation.AppNav
 import com.tecsup.pokemon.ui.theme.PokemonFireG08Theme
 
 class MainActivity : ComponentActivity() {
-    private val appContainer = AppContainer()
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val listaViewModel: ListaViewModel = viewModel(
-                factory = ListaViewModel.Factory(appContainer)
-            )
+            val dependencies: ContainerViewModel = viewModel()
             PokemonFireG08Theme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    ListaScreen(
-                        viewModel = listaViewModel,
-                        // Integración temporal: la navegación se añadirá en su hito.
-                        onItemClick = { _ -> },
+                    AppNav(
+                        container = dependencies.container,
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
             }
         }
     }
+}
+
+// Retiene la misma instancia del repositorio durante los cambios de configuración.
+class ContainerViewModel : ViewModel() {
+    val container = AppContainer()
 }
