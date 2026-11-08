@@ -8,12 +8,17 @@ import com.tecsup.pokemon.data.mapper.aEntity
 import com.tecsup.pokemon.data.remote.ApiService
 import com.tecsup.pokemon.data.remote.dto.ItemDto
 import com.tecsup.pokemon.data.remote.dto.TipoDto
+import com.tecsup.pokemon.data.remote.dto.PokemonPorTipoDto
+import com.tecsup.pokemon.data.remote.dto.RecursoDto
 import com.tecsup.pokemon.data.repository.ItemRepositoryImpl
 import com.tecsup.pokemon.domain.model.EstadisticasBasicas
 import com.tecsup.pokemon.domain.model.Item
 import java.io.IOException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -106,6 +111,36 @@ class ItemDaoTest {
             dao.guardarReferencias(emptyList())
             assertEquals(1, dao.contar())
             assertEquals(fila, dao.porId(item.id))
+        } finally { db.close() }
+    }
+
+    @Test fun lecturasYFavoritoPersistenDuranteSincronizacionSuspendida() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        val iniciada = CompletableDeferred<Unit>()
+        val continuar = CompletableDeferred<Unit>()
+        val api = object : ApiService {
+            override suspend fun listar(): TipoDto {
+                iniciada.complete(Unit)
+                continuar.await()
+                return TipoDto("fire", listOf(PokemonPorTipoDto(1, RecursoDto(item.id, "https://pokeapi.co/api/v2/pokemon/6/"))))
+            }
+            override suspend fun obtenerDetalle(nombre: String): ItemDto = error("El detalle debe salir de Room")
+        }
+        try {
+            db.itemDao().guardarDetalle(item.aEntity(true))
+            val repo = ItemRepositoryImpl(api, db.itemDao())
+            val sincronizacion = async { repo.refrescar() }
+            try {
+                withTimeout(10_000) {
+                    iniciada.await()
+                    assertEquals(item, repo.obtenerDetalle(item.id).getOrThrow())
+                    repo.alternarFavorito(item.id)
+                    assertEquals(1, repo.cantidadFavoritos())
+                    assertEquals(item.copy(esFavorito = true), repo.items.first().single())
+                }
+            } finally { continuar.complete(Unit); sincronizacion.await().getOrThrow() }
+            assertEquals(item.copy(esFavorito = true), repo.items.first().single())
+            assertEquals(1, repo.cantidadGuardada())
         } finally { db.close() }
     }
 

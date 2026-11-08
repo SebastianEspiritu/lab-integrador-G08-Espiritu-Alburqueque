@@ -11,6 +11,7 @@ import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -212,6 +213,60 @@ class RepositoryViewModelTest {
         assertTrue(repo.favoritos.first().isEmpty())
         assertFalse(repo.obtenerDetalle("charmander").getOrThrow().esFavorito)
         assertEquals(2, api.llamadasDetalle)
+    }
+
+    @Test fun filtrarRepetidamenteNoDisparaPeticionesRealesDelContratoApi() = runTest(dispatcher) {
+        val api = FakeApi()
+        val vm = retener("lista", ListaViewModel(ItemRepositoryImpl(api, FakeItemDao(), dispatcher)))
+        advanceUntilIdle()
+        repeat(50) {
+            vm.buscar("char".take(it % 5))
+            vm.seleccionarTipo("fire")
+            vm.restablecerFiltros()
+        }
+        advanceUntilIdle()
+        assertEquals(1, api.llamadasLista)
+        assertEquals(0, api.llamadasDetalle)
+        assertEquals("charmander", (vm.estado.value as UiState.Exito).datos.single().id)
+    }
+
+    @Test fun flujosContadoresYFavoritosNoEsperanLaRed() = runTest(dispatcher) {
+        val api = FakeApi()
+        val repo = ItemRepositoryImpl(api, FakeItemDao(), dispatcher)
+        val original = repo.obtenerDetalle("charmander").getOrThrow()
+        val barrera = CompletableDeferred<Unit>()
+        api.bloqueoLista = barrera
+        val sincronizacion = async { repo.refrescar() }
+        runCurrent()
+        val lectura = async {
+            repo.alternarFavorito("charmander")
+            assertEquals(1, repo.cantidadGuardada())
+            assertEquals(1, repo.cantidadFavoritos())
+            assertEquals(original.copy(esFavorito = true), repo.items.first().single())
+            assertEquals(1, repo.favoritos.first().size)
+        }
+        runCurrent()
+        try {
+            assertTrue("Los datos locales no deben esperar la red", lectura.isCompleted)
+            lectura.await()
+        } finally { barrera.complete(Unit); sincronizacion.await() }
+        assertTrue(repo.items.first().single().esFavorito)
+    }
+
+    @Test fun cancelarSincronizacionNoBorraCacheYPermiteReintento() = runTest(dispatcher) {
+        val api = FakeApi()
+        val repo = ItemRepositoryImpl(api, FakeItemDao(), dispatcher)
+        repo.obtenerDetalle("charmander").getOrThrow()
+        repo.alternarFavorito("charmander")
+        val anterior = repo.items.first()
+        api.bloqueoLista = CompletableDeferred()
+        val sincronizacion = async { repo.refrescar() }
+        runCurrent()
+        sincronizacion.cancelAndJoin()
+        assertEquals(anterior, repo.items.first())
+        api.bloqueoLista = null
+        assertEquals(1, repo.refrescar().getOrThrow())
+        assertEquals(anterior, repo.items.first())
     }
 
     private class FakeApi : ApiService {

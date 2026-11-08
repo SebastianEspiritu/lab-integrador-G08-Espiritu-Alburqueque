@@ -5,6 +5,7 @@ import com.tecsup.pokemon.data.repository.ItemRepository
 import com.tecsup.pokemon.domain.model.Item
 import com.tecsup.pokemon.ui.lista.ListaViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -141,13 +142,104 @@ class ListaFiltrosTest {
         assertEquals("char", vm.busqueda.value)
     }
 
+    @Test fun cambiosRapidosPublicanLaUltimaCombinacionSinSincronizar() = runTest(dispatcher) {
+        val repo = FakeRepository(muestras)
+        val vm = crear(repo)
+        advanceUntilIdle()
+        repeat(50) {
+            vm.buscar(if (it % 2 == 0) "vulpix" else "char")
+            vm.seleccionarTipo(if (it % 2 == 0) "fire" else "flying")
+        }
+        advanceUntilIdle()
+        assertEquals("char", vm.busqueda.value)
+        assertEquals("flying", vm.tipoSeleccionado.value)
+        assertEquals(listOf("charizard"), ids(vm))
+        assertEquals(1, repo.refrescos)
+    }
+
+    @Test fun restablecerTrasCambiosRapidosNoDejaResultadosAnteriores() = runTest(dispatcher) {
+        val repo = FakeRepository(muestras)
+        val vm = crear(repo)
+        advanceUntilIdle()
+        repeat(20) { vm.buscar("sin coincidencias"); vm.seleccionarTipo("flying") }
+        vm.restablecerFiltros()
+        advanceUntilIdle()
+        assertEquals(muestras.map { it.id }, ids(vm))
+        assertFalse(vm.filtrosActivos.value)
+        assertEquals(1, repo.refrescos)
+    }
+
+    @Test fun listaLocalVaciaPermaneceExitoAlBuscarYRestablecer() = runTest(dispatcher) {
+        val repo = FakeRepository(emptyList())
+        val vm = crear(repo)
+        advanceUntilIdle()
+        vm.buscar("char")
+        advanceUntilIdle()
+        assertTrue(ids(vm).isEmpty())
+        assertTrue(vm.filtrosActivos.value)
+        assertTrue(vm.tiposDisponibles.value.isEmpty())
+        vm.restablecerFiltros()
+        advanceUntilIdle()
+        assertTrue(ids(vm).isEmpty())
+        assertFalse(vm.filtrosActivos.value)
+    }
+
+    @Test fun escribirDuranteCargaConservaCargandoYAplicaUltimaBusqueda() = runTest(dispatcher) {
+        val repo = FakeRepository(emptyList()).apply { barrera = CompletableDeferred() }
+        val vm = crear(repo)
+        runCurrent()
+        vm.buscar("vul")
+        vm.buscar("CHAR")
+        runCurrent()
+        assertEquals(UiState.Cargando, vm.estado.value)
+        repo.items.value = muestras
+        repo.barrera!!.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf("charmander", "charizard"), ids(vm))
+        assertEquals(1, repo.refrescos)
+    }
+
+    @Test fun reintentarConservaAmbosFiltrosYLimpiaAvisoOffline() = runTest(dispatcher) {
+        val repo = FakeRepository(muestras).apply { fallo = true }
+        val vm = crear(repo)
+        advanceUntilIdle()
+        vm.buscar("char")
+        vm.seleccionarTipo("flying")
+        advanceUntilIdle()
+        assertNotNull(vm.aviso.value)
+        repo.fallo = false
+        vm.cargar()
+        advanceUntilIdle()
+        assertEquals(listOf("charizard"), ids(vm))
+        assertEquals("char", vm.busqueda.value)
+        assertEquals("flying", vm.tipoSeleccionado.value)
+        assertNull(vm.aviso.value)
+        assertEquals(2, repo.refrescos)
+    }
+
+    @Test fun datosLocalesYFiltrosCambiadosEnElMismoCicloSonConsistentes() = runTest(dispatcher) {
+        val repo = FakeRepository(muestras)
+        val vm = crear(repo)
+        advanceUntilIdle()
+        vm.buscar("vulpix")
+        vm.seleccionarTipo("fire")
+        repo.items.value = muestras.take(2)
+        vm.buscar("char")
+        vm.seleccionarTipo("flying")
+        advanceUntilIdle()
+        assertEquals(listOf("charizard"), ids(vm))
+        assertEquals(1, repo.refrescos)
+    }
+
     private class FakeRepository(iniciales: List<Item>) : ItemRepository {
         override val items = MutableStateFlow(iniciales)
         override val favoritos = items.map { lista -> lista.filter { it.esFavorito } }
         var refrescos = 0
         var fallo = false
+        var barrera: CompletableDeferred<Unit>? = null
         override suspend fun refrescar(): Result<Int> {
             refrescos++
+            barrera?.await()
             return if (fallo) Result.failure(IllegalStateException("Sin conexión")) else Result.success(items.value.size)
         }
         override suspend fun obtenerDetalle(id: String): Result<Item> = Result.success(items.value.first { it.id == id })
