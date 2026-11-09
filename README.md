@@ -59,7 +59,21 @@ service cloud.firestore {
 
 ## Capturas
 
-<!-- Agregar capturas: login, lista, detalle, favoritos, panel Admin y notificación -->
+| Login | Catálogo (usuario) | Detalle |
+|:---:|:---:|:---:|
+| <img src="capturas/01-login.png" width="230" alt="Pantalla de login"> | <img src="capturas/02-lista.png" width="230" alt="Lista de Pokémon"> | <img src="capturas/03-detalle.png" width="230" alt="Detalle de un Pokémon"> |
+
+| Favoritos | Catálogo (admin) con favoritos | Panel Admin |
+|:---:|:---:|:---:|
+| <img src="capturas/04-favoritos.png" width="230" alt="Pantalla de favoritos"> | <img src="capturas/08-lista-admin.png" width="230" alt="Lista con favoritos marcados"> | <img src="capturas/05-admin.png" width="230" alt="Panel de administración"> |
+
+| Limpiar caché (confirmación) | Notificación al sincronizar |
+|:---:|:---:|
+| <img src="capturas/06-admin-limpiar.png" width="230" alt="Diálogo para limpiar caché"> | <img src="capturas/07-notificacion.png" width="360" alt="Notificación Se guardaron 109 elementos"> |
+
+**Fase 2 · Vista horizontal** (menú lateral y lista en dos columnas):
+
+<img src="capturas/09-horizontal.png" width="720" alt="Catálogo en orientación horizontal">
 
 ## Reparto de tareas
 
