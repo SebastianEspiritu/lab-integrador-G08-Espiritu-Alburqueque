@@ -28,4 +28,10 @@ Grupo G08 · Pokémon (tipo `fire`) · Rama `mejora-ia`
 
 ## Sebastián Espíritu
 
-*(agregar aquí tus consultas con el mismo formato)*
+### Consulta 1
+- **Fecha:** 2026-11-08
+- **Herramienta:** Claude (claude.ai)
+- **Prompt:** Proponer una mejora de bajo riesgo para el manejo de errores de red en `ItemRepositoryImpl`, sin modificar el flujo que ya funciona: reemplazar el mensaje genérico «error HTTP N» por mensajes comprensibles según el código de PokeAPI (404, 429, 5xx) y distinguir un timeout de la falta de conexión, con pruebas unitarias.
+- **Qué respondió (resumen):** Verificó que `RetrofitClient` ya tenía timeouts configurados. Propuso extraer el texto de los errores a dos funciones puras en `data/remote/MensajesError.kt` (`mensajeHttp` y `mensajeConexion`) y usarlas en el bloque `resultado` del repositorio, conservando siempre el código HTTP en el mensaje para no romper las pruebas existentes.
+- **Qué usamos / qué cambiamos y por qué:** Usamos las dos funciones y cambiamos solo las dos líneas del repositorio que armaban el mensaje; el resto del código quedó igual. Agregamos 5 pruebas unitarias. Al ser funciones puras, se prueban sin Retrofit ni Android.
+- **Qué aprendimos:** Que separar el texto de los errores en funciones puras permite mejorar lo que ve el usuario sin tocar la lógica, y probarlo con pruebas simples; y que `SocketTimeoutException` es una `IOException`, por eso hay que revisarla antes para dar un mensaje distinto.
