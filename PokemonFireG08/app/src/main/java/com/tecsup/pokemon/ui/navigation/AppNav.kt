@@ -1,7 +1,9 @@
 package com.tecsup.pokemon.ui.navigation
 
+import android.content.res.Configuration
 import android.net.Uri
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -9,13 +11,18 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -76,6 +83,10 @@ private fun Catalogo(
     modifier: Modifier
 ) {
     val navController = rememberNavController()
+    val destinos = destinosPara(sesion)
+    // En horizontal la altura es escasa: el menú pasa al costado y la barra superior se reduce.
+    val horizontal = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val rolTexto = if (sesion.rol == Rol.ADMIN) "Administrador" else "Usuario"
     Scaffold(
         modifier = modifier,
         // MainActivity ya aplica los insets del sistema.
@@ -83,21 +94,26 @@ private fun Catalogo(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0),
+                expandedHeight = if (horizontal) 48.dp else TopAppBarDefaults.TopAppBarExpandedHeight,
                 title = {
-                    Column {
-                        Text(sesion.correo, style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            if (sesion.rol == Rol.ADMIN) "Administrador" else "Usuario",
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                    if (horizontal) {
+                        Text("${sesion.correo} · $rolTexto", style = MaterialTheme.typography.titleSmall)
+                    } else {
+                        Column {
+                            Text(sesion.correo, style = MaterialTheme.typography.titleMedium)
+                            Text(rolTexto, style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                 },
                 actions = { TextButton(onClick = onCerrarSesion) { Text("Cerrar sesión") } }
             )
         },
-        bottomBar = { BarraInferior(navController, destinosPara(sesion)) }
+        bottomBar = { if (!horizontal) BarraInferior(navController, destinos) }
     ) { padding ->
-        CatalogoNavHost(container, sesion, navController, Modifier.padding(padding))
+        Row(Modifier.fillMaxSize().padding(padding)) {
+            if (horizontal) RielLateral(navController, destinos)
+            CatalogoNavHost(container, sesion, navController, Modifier.weight(1f))
+        }
     }
 }
 
@@ -112,6 +128,15 @@ private fun destinosPara(sesion: Sesion): List<Destino> =
     if (sesion.rol == Rol.ADMIN) listOf(DESTINO_LISTA, DESTINO_FAVORITOS, DESTINO_ADMIN)
     else listOf(DESTINO_LISTA, DESTINO_FAVORITOS)
 
+/** Cambia de pestaña sin apilar pantallas y recordando dónde estaba cada una. */
+private fun NavHostController.irA(ruta: String) {
+    navigate(ruta) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
 @Composable
 private fun BarraInferior(navController: NavHostController, destinos: List<Destino>) {
     val entrada by navController.currentBackStackEntryAsState()
@@ -120,13 +145,24 @@ private fun BarraInferior(navController: NavHostController, destinos: List<Desti
         destinos.forEach { destino ->
             NavigationBarItem(
                 selected = rutaActual == destino.ruta,
-                onClick = {
-                    navController.navigate(destino.ruta) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
+                onClick = { navController.irA(destino.ruta) },
+                icon = { Text(destino.icono) },
+                label = { Text(destino.titulo) }
+            )
+        }
+    }
+}
+
+/** Versión vertical del menú para pantallas en horizontal. */
+@Composable
+private fun RielLateral(navController: NavHostController, destinos: List<Destino>) {
+    val entrada by navController.currentBackStackEntryAsState()
+    val rutaActual = entrada?.destination?.route
+    NavigationRail(windowInsets = WindowInsets(0)) {
+        destinos.forEach { destino ->
+            NavigationRailItem(
+                selected = rutaActual == destino.ruta,
+                onClick = { navController.irA(destino.ruta) },
                 icon = { Text(destino.icono) },
                 label = { Text(destino.titulo) }
             )

@@ -5,6 +5,8 @@ import com.tecsup.pokemon.data.mapper.aEntity
 import com.tecsup.pokemon.data.mapper.aModelo
 import com.tecsup.pokemon.data.mapper.aModelos
 import com.tecsup.pokemon.data.remote.ApiService
+import com.tecsup.pokemon.data.remote.mensajeConexion
+import com.tecsup.pokemon.data.remote.mensajeHttp
 import com.tecsup.pokemon.domain.model.Item
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
@@ -60,9 +62,9 @@ class ItemRepositoryImpl(
         } catch (e: CancellationException) {
             throw e
         } catch (e: HttpException) {
-            Result.failure(IllegalStateException("El servidor respondió con error HTTP ${e.code()}.", e))
+            Result.failure(IllegalStateException(mensajeHttp(e.code()), e))
         } catch (e: IOException) {
-            Result.failure(IllegalStateException("No se pudo conectar. Revisa tu conexión a Internet.", e))
+            Result.failure(IllegalStateException(mensajeConexion(e), e))
         } catch (e: Exception) {
             Result.failure(IllegalStateException("No se pudieron cargar o guardar los datos de Pokémon.", e))
         }
